@@ -1,0 +1,155 @@
+<?php
+/**
+ * show a "internal server error" page. if you want your own: put it in /views/layouts/error.thtml
+ *
+ * you can provide your own error-layout by putting it in /views/layouts/error.thtml
+ *
+ * @author mnt
+ * @package kata_view
+ */
+
+$minidump= basename($e->getFile()).':'.$e->getLine().' '.$e->getMessage();
+$cnt= 1;
+foreach ($e->getTrace() as $trace) {
+	if (isset($trace['file']) && (basename($trace['file']) == 'dispatcher.php')) { break; }
+
+	$minidump.="\n";
+
+	if (isset ($trace['file'])) {
+		$minidump .= basename($trace['file']).':'.$trace['line'].' ';
+	}
+	if (isset ($trace['class'])) {
+		$minidump .= $trace['class'].(isset($trace['type'])?$trace['type']:'::');
+	}
+	$minidump .= $trace['function'].'(';
+	if (isset ($trace['args'])) {
+		foreach ($trace['args'] as $id => $arg) {
+			$minidump .= $id.'=\'';
+			$minidump .= (is_object($arg) ? get_class($arg) : $arg).'\' ';
+		}
+		$minidump= substr($minidump, 0, -1);
+	}
+	$minidump .= ")";
+
+	$cnt++;
+	if ($cnt > 4) {
+		break;
+	}
+}
+
+if (DEBUG < 1) {
+
+	echo '<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+		<html><head>
+		<title>400 Bad Request</title>
+		</head><body>
+		<h1>Bad Request</h1>
+		<p>The request could not be understood by the server.</p>
+		</body></html>';
+	// put it into apaches errorlog
+	error_log($minidump);
+
+} else {
+?>
+<html>
+	<head>
+		<title>Framework Exception</title>
+	</head>
+	<style type="text/css">
+	* {
+		text-align:left;direction:ltr;
+	}
+	</style>
+<body>
+<h1>Framework Exception</h1>
+<?php
+
+	echo 'An unhandled Error (type <tt style="background:#e0e0e0">'.get_class($e).'</tt>) occured: <tt style="background:#e0e0e0">'.$e->getMessage().'</tt><br /><br />Line <tt style="background:#e0e0e0">'.$e->getLine().'</tt> of file <tt style="background:#e0e0e0">'.$e->getFile()."</tt><br /><br />Backtrace (hover over strings to see full version):<pre>\n";
+	$traceArray= $e->getTrace();
+
+	/**
+	 * generate a basic stacktrace
+	 * @param $vars array stacktrace from exception
+	 */
+	function kataMiniVarDump($vars) {
+		if (count($vars)==0) { return; }
+
+		$varCnt=0;
+		foreach ($vars as $var) {
+			if (is_string($var)) {
+				if (strlen($var)>20) {
+					echo '<span title="'.h($var).'">\''.h(substr($var,0,20)).'\'...</span>';
+				} else {
+					echo "'".h($var)."'";
+				}
+			} else if (is_numeric($var)) {
+				echo h($var);
+			} else {
+				echo h(kataFunc::getValueInfo($var));
+			}
+
+			$varCnt++;
+			if (($varCnt>2) && (count($vars)>2)) {
+				echo '...';
+				break;
+			}
+			if($varCnt<count($vars)) {
+				echo ', ';
+			}
+		}
+	}
+
+	$tdCell = '<td style="border:1px solid red;padding:2px;">';
+	echo '<table style="min-width:100%;border:1px solid red;color:black;background-color:#e8e8e8;border-collapse:collapse;"><tr>'.$tdCell.'#</td>'.$tdCell.'Function</td>'.$tdCell.'Location</td></tr>';
+	$cnt= 0;
+	foreach ($traceArray as $traceLine) {
+		$cnt++;
+
+		echo '<tr>'.$tdCell.'<a name="kataErrorTop'.$cnt.'">#'.$cnt.'</a></td>'.$tdCell.'<a style="color:black;" href="javascript:var e=document.getElementById(\'kataError'.$cnt.'\');e.style.display=(e.style.display==\'none\'?\'table-row\':\'none\');void(0);">';
+
+		if (isset($traceLine['function']) && ($traceLine['function'] == 'kataStrictErrorHandler')) {
+			$str=$e->getLineStr();
+			if (strlen($str)>40) {
+				echo h(substr($str,0,40)).'...';
+			} else {
+				echo h($str);
+			}
+			$traceLine = array(
+				'file'=>$e->getFile(),
+				'line'=>$e->getLine()
+			);
+		}
+
+		if (isset ($traceLine['class'])) {
+			echo $traceLine['class'].$traceLine['type'].$traceLine['function'].'(';
+			if (isset($traceLine['args'])) {
+				kataMiniVarDump($traceLine['args']);
+
+			}
+			echo ')';
+		} else
+			if (isset ($traceLine['function'])) {
+				echo $traceLine['function'].'(';
+				kataMiniVarDump($traceLine['args']);
+				echo ')';
+			}
+		echo '</a></td>'.$tdCell;
+		if (isset ($traceLine['file'])) {
+			echo str_replace(ROOT, '', $traceLine['file']).':'.$traceLine['line'];
+		}
+		echo '</td></tr>';
+
+		echo '<tr id="kataError'.$cnt.'" style="display:none"><td colspan="3"><pre>';
+		print_R($traceLine);
+		echo "\n";
+		echo '<a style="color:black;" href="#kataErrorTop'.$cnt.'">^ top</a> <a style="color:black;" href="javascript:var e=document.getElementById(\'kataError'.$cnt.'\');e.style.display=(e.style.display==\'none\'?\'table-row\':\'none\');void(0);">close</a>';
+		echo '</pre></td></tr>';
+
+	}
+	echo '</table><br /><br />';
+?>
+</body>
+</html>
+<?php
+}
+

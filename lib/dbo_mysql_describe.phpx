@@ -1,0 +1,91 @@
+
+	/*deprecated(complex) tested. works fine
+	function & describe($tableName) {
+		$tableName = str_replace(array ($this->quoteLeft,$this->quoteRight), '', $tableName)
+		$primaryKey= array();
+		$desc= array ();
+		$cols= array ();
+		$sql = "Select a.COLUMN_NAME,IS_NULLABLE,COLUMN_DEFAULT,DATA_TYPE,CHARACTER_MAXIMUM_LENGTH,NUMERIC_PRECISION,NUMERIC_SCALE,CONSTRAINT_NAME,CONSTRAINT_TYPE
+						from INFORMATION_SCHEMA.COLUMNS as a left join
+							(SELECT a.COLUMN_NAME,b.CONSTRAINT_TYPE,b.CONSTRAINT_NAME
+							from INFORMATION_SCHEMA.KEY_COLUMN_USAGE as a,INFORMATION_SCHEMA.TABLE_CONSTRAINTS as b
+							where a.TABLE_NAME='".$tableName."' AND a.TABLE_SCHEMA = DATABASE()
+							AND b.TABLE_NAME='".$tableName."' AND b.CONSTRAINT_SCHEMA = DATABASE()
+							AND b.CONSTRAINT_NAME=a.CONSTRAINT_NAME
+							)as b on (a.COLUMN_NAME = b.COLUMN_NAME)
+						where a.TABLE_NAME='".$tableName."' AND a.TABLE_SCHEMA =DATABASE()";
+
+		$r= mysql_query($sql,$this->getLink());
+		if (false == $r) {
+			throw new Exception('model: cant describe, missing rights?');
+		}
+		$noResult = true;
+		while ($row= mysql_fetch_assoc($r)) {
+			$noResult = false;
+			$data= array ();
+			$data['default']= empty ($row['COLUMN_DEFAULT']) ? false : $row['COLUMN_DEFAULT'];
+			$data['null']= 'NO' != $row['IS_NULLABLE'];
+			$data['length']= 0;
+
+			if('UNIQUE' == $row['CONSTRAINT_TYPE'] ){
+				if(!isset($uniqueKeys[$row['CONSTRAINT_NAME']])){
+					$uniqueKeys[$row['CONSTRAINT_NAME']] = array();
+				}
+				$uniqueKeys[$row['CONSTRAINT_NAME']][] = $row['COLUMN_NAME'];
+			}
+
+			if ('PRIMARY KEY' == $row['CONSTRAINT_TYPE']) {
+				$primaryKey[] = $row['COLUMN_NAME'];
+			}
+			switch ($row['DATA_TYPE']) {
+				case 'bit' :
+					$data['type']= 'bool';
+					$data['length']= $row['NUMERIC_PRECISION'];
+					break;
+				case 'bigint':
+				case 'int':
+				case 'smallint':
+				case 'tinyint':
+					$data['length']= $row['NUMERIC_PRECISION'];
+					$data['type']= 'int';
+					break;
+				case 'char':
+				case 'varchar':
+					$data['length']= $row['CHARACTER_MAXIMUM_LENGTH'];
+					$data['type']= 'string';
+					break;
+				case 'text':
+					$data['type']= 'text';
+					break;
+				case 'float':
+				case 'double':
+				case 'real':
+					$data['type']= 'float';
+					break;
+				case 'date':
+				case 'datetime':
+				case 'time':
+				case 'timestamp':
+					$data['type']= 'date';
+			}
+			$cols[$row['COLUMN_NAME']]= $data;
+		}
+
+		if ($noResult === true) {
+			throw new Exception('table does not exists in selected Database');
+		}
+		$unique = array();
+		foreach ($uniqueKeys as $uniqueKey){
+				$unique[]= $uniqueKey;
+		}
+		$desc= array (
+			'table' => str_replace(array (
+				$this->quoteLeft,
+				$this->quoteRight
+			), '', $tableName),
+			'primary' => $primaryKey,
+			'unique' => $unique,
+			'cols' => $cols
+		);
+		return $desc;
+	}

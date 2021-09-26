@@ -1,0 +1,85 @@
+<?
+/**
+ * scaffolder view page
+ * @ignore
+ * @package kata_scaffold
+ * @author mnt
+ */
+?>
+<form action="<?php echo $html->url($this->params['controller'].'/'.($update>0?'update':'insert')); ?>" method="post">
+<table>
+
+<?php
+
+//TODO far from begin complete, and not very clean
+
+    if ($update) {
+        echo '<input type="hidden" name="id" value="'.$update.'">';
+    }
+
+    foreach ($schema['cols'] as $name=>$col) {
+    	$cellData = '';
+    	if ($update>0) {
+    		if (isset($data[$name])) {
+                $cellData = $data[$name];
+    		}
+            if (isset($formData[$name])) {
+                $cellData = $formData[$name];
+            }
+    	}
+        if ($schema['primary'] == $name) {
+            continue;
+        }
+
+        echo '<tr><td>'.$name.'</td><td>';
+        switch ($col['type']) {
+            case 'int':
+            	if ($cellData == '') {
+            	   $cellData = 0;
+            	}
+            	echo '<input type="number" name="data['.$name.']" value="'.$cellData.'" maxlength="'.$col['length'].'">';
+            	break;
+
+            case 'string':
+                echo '<input type="text" name="data['.$name.']" value="'.$cellData.'" maxlength="'.$col['length'].'">';
+            	break;
+
+            case 'text':
+                echo '<textarea name="data['.$name.']" cols="60" rows="10">'.$cellData.'</textarea>';
+                break;
+
+            case 'date':
+                if ($cellData == '') {
+                   $cellData = 0;
+                }
+            	echo '<input type="text" class="val_num" name="data['.$name.']" value="'.$cellData.'" maxlength="'.$col['length'].'">';
+            	break;
+
+            case 'enum':
+            	echo $html->selectTag('data['.$name.']',$col['values'],$cellData,array(),array(),false);
+                break;
+
+            case 'bool':
+            	echo '<input type="checkbox" name="data['.$name.']" value="1" '.($cellData?'checked="checked" ':'').'>';
+                break;
+
+            case 'unixdate':
+                if ($cellData == '') {
+                   $cellData = 0;
+                }
+            	echo '<input type="datetime" name="data['.$name.']" value="'.date('c',$cellData).'">';
+                break;
+        }
+        echo '</td></tr>'.chr(10);
+    }
+?>
+
+<tr>
+<td colspan="2" align="right">
+    <input type="reset" value="Reset">
+    <input type="submit" value="<?php echo $update>0?'[ Update ]':'Insert'; ?>">
+</td>
+</tr>
+
+</table>
+</form>

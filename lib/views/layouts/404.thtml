@@ -1,0 +1,27 @@
+<?php
+/**
+ * show a 404-status page. if you want your own: put it in /views/layouts/404.thtml
+ *
+ * you can provide your own 404-layout by putting it in /views/layouts/404.thtml
+ *
+ * @author mnt
+ * @package kata_view
+ */
+
+$res = '/'.$this->params['controller'].'/'.$this->params['action'].'/';
+foreach ($this->params['pass'] as $p) {
+    $res.=$p.'/';
+}
+$res = h($res);
+
+header('HTTP/1.1 404 Not Found');
+header('Status: 404 Not Found');
+
+    echo '<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html><head>
+<title>404 Not Found</title>
+</head><body>
+<h1>Not Found</h1>
+<p>The requested resource '.$res.' could not be found on this server.</p>
+</body></html>';
+?>
